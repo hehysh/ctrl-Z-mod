@@ -1,0 +1,55 @@
+name: Build and Release
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Build jar
+        run: gradle clean jar --no-daemon
+
+      - name: Upload CI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CtrlZMod-${{ github.run_number }}
+          path: build/libs/CtrlZMod-*.jar
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: v0.2.${{ github.run_number }}
+          name: CtrlZMod v0.2.${{ github.run_number }}
+          commit: ${{ github.sha }}
+          artifacts: build/libs/CtrlZMod-*.jar
+          allowUpdates: true
+          replacesArtifacts: true
+          generateReleaseNotes: true
+          body: |
+            Automated release from CI.
+            - Commit: ${{ github.sha }}
+            - Workflow run: #${{ github.run_number }}

@@ -26,7 +26,7 @@
 ```
 
 产物位于：
-- `build/libs/CtrlZMod-0.1.0.jar`
+- `build/libs/CtrlZMod-0.2.0.jar`
 
 ## 兼容性说明
 - 目标：原版 + 主流单机 Mod 组合下尽量兼容
