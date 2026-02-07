@@ -3,88 +3,132 @@ package ctrlzmod.undo;
 import com.megacrit.cardcrawl.dungeons.AbstractDungeon;
 import ctrlzmod.CtrlZMod;
 
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.logging.Logger;
 
 public class UndoManager {
     private static final Logger logger = Logger.getLogger(UndoManager.class.getName());
+
+    private static final class Snapshot {
+        final Object state;
+        final long sessionToken;
+
+        Snapshot(Object state, long sessionToken) {
+            this.state = state;
+            this.sessionToken = sessionToken;
+        }
+    }
+
+    private static long currentSessionToken = 0L;
+    private static boolean disabledForCurrentCombat = false;
+
     private static Object lastState = null;
     private static Object redoState = null;
 
     private UndoManager() {}
 
     public static void captureBeforeAction() {
-        if (!CtrlZMod.inCombat()) {
+        if (!canUseUndoNow()) {
             return;
         }
 
         try {
-            Class<?> saveStateCls = Class.forName("savestate.SaveState");
-            Object captured = tryInvokeFactory(saveStateCls, "forCurrentState");
+            Object captured = captureCurrentState();
             if (captured == null) {
-                captured = tryInvokeFactory(saveStateCls, "save");
+                disableForCurrentCombat("capture", null);
+                return;
             }
-            if (captured == null) {
-                Constructor<?> ctor = saveStateCls.getDeclaredConstructor();
-                ctor.setAccessible(true);
-                captured = ctor.newInstance();
-            }
-            lastState = captured;
+            lastState = new Snapshot(captured, currentSessionToken);
             redoState = null;
-        } catch (Throwable ignored) {
-            lastState = null;
-            redoState = null;
-            logger.fine("Capture skipped: SaveState API not available.");
+        } catch (Throwable t) {
+            disableForCurrentCombat("capture", t);
         }
     }
 
     public static void undoLatest() {
-        if (!CtrlZMod.inCombat() || lastState == null) {
+        if (!canUseUndoNow() || !(lastState instanceof Snapshot)) {
             return;
         }
 
         try {
-            redoState = captureCurrentState();
+            Snapshot undoSnapshot = (Snapshot) lastState;
+            if (undoSnapshot.sessionToken != currentSessionToken) {
+                clear();
+                return;
+            }
 
-            if (!tryInvokeNoArg(lastState, "loadState")) {
-                if (!tryInvokeBooleanArg(lastState, "loadState", true)) {
-                    tryInvokeNoArg(lastState, "restore");
+            Object redoRaw = captureCurrentState();
+            if (redoRaw == null) {
+                disableForCurrentCombat("undo-capture-redo", null);
+                return;
+            }
+            redoState = new Snapshot(redoRaw, currentSessionToken);
+
+            if (!tryInvokeNoArg(undoSnapshot.state, "loadState")) {
+                if (!tryInvokeBooleanArg(undoSnapshot.state, "loadState", true)) {
+                    if (!tryInvokeNoArg(undoSnapshot.state, "restore")) {
+                        disableForCurrentCombat("undo-load", null);
+                        return;
+                    }
                 }
             }
 
             AbstractDungeon.actionManager.clearPostCombatActions();
             AbstractDungeon.player.releaseCard();
-        } catch (Throwable ignored) {
-            logger.warning("Undo failed due to SaveState API mismatch.");
+        } catch (Throwable t) {
+            disableForCurrentCombat("undo", t);
         } finally {
             lastState = null;
         }
     }
 
     public static void redoLatest() {
-        if (!CtrlZMod.inCombat() || redoState == null) {
+        if (!canUseUndoNow() || !(redoState instanceof Snapshot)) {
             return;
         }
 
         try {
-            Object beforeRedo = captureCurrentState();
+            Snapshot redoSnapshot = (Snapshot) redoState;
+            if (redoSnapshot.sessionToken != currentSessionToken) {
+                clear();
+                return;
+            }
 
-            if (!tryInvokeNoArg(redoState, "loadState")) {
-                if (!tryInvokeBooleanArg(redoState, "loadState", true)) {
-                    tryInvokeNoArg(redoState, "restore");
+            Object beforeRedo = captureCurrentState();
+            if (beforeRedo == null) {
+                disableForCurrentCombat("redo-capture-undo", null);
+                return;
+            }
+
+            if (!tryInvokeNoArg(redoSnapshot.state, "loadState")) {
+                if (!tryInvokeBooleanArg(redoSnapshot.state, "loadState", true)) {
+                    if (!tryInvokeNoArg(redoSnapshot.state, "restore")) {
+                        disableForCurrentCombat("redo-load", null);
+                        return;
+                    }
                 }
             }
 
             AbstractDungeon.actionManager.clearPostCombatActions();
             AbstractDungeon.player.releaseCard();
 
-            lastState = beforeRedo;
-        } catch (Throwable ignored) {
-            logger.warning("Redo failed due to SaveState API mismatch.");
+            lastState = new Snapshot(beforeRedo, currentSessionToken);
+        } catch (Throwable t) {
+            disableForCurrentCombat("redo", t);
         } finally {
             redoState = null;
         }
+    }
+
+    public static void beginCombatSession() {
+        currentSessionToken++;
+        disabledForCurrentCombat = false;
+        clear();
+    }
+
+    public static void endCombatSession() {
+        clear();
+        disabledForCurrentCombat = false;
     }
 
     public static void clear() {
@@ -99,14 +143,23 @@ public class UndoManager {
             if (captured == null) {
                 captured = tryInvokeFactory(saveStateCls, "save");
             }
-            if (captured == null) {
-                Constructor<?> ctor = saveStateCls.getDeclaredConstructor();
-                ctor.setAccessible(true);
-                captured = ctor.newInstance();
-            }
             return captured;
         } catch (Throwable ignored) {
             return null;
+        }
+    }
+
+    private static boolean canUseUndoNow() {
+        return CtrlZMod.inCombat() && !disabledForCurrentCombat;
+    }
+
+    private static void disableForCurrentCombat(String stage, Throwable t) {
+        disabledForCurrentCombat = true;
+        clear();
+        if (t == null) {
+            logger.warning("Undo disabled for current combat at stage: " + stage);
+        } else {
+            logger.warning("Undo disabled for current combat at stage: " + stage + " due to: " + t.getClass().getSimpleName());
         }
     }
 

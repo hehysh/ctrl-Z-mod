@@ -32,18 +32,34 @@ jobs:
       - name: Build jar
         run: gradle clean jar --no-daemon
 
+      - name: Read project version
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          ver=$(gradle -q printVersion | tail -n1)
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+
+      - name: Verify version consistency
+        shell: bash
+        run: |
+          set -euo pipefail
+          ver='${{ steps.meta.outputs.version }}'
+          test -f "build/libs/CtrlZMod-${ver}.jar"
+          test "$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' build/resources/main/ModTheSpire.json | head -n1)" = '"version": "'"$ver"'"'
+
       - name: Upload CI artifact
         uses: actions/upload-artifact@v4
         with:
-          name: CtrlZMod-${{ github.run_number }}
+          name: CtrlZMod-${{ steps.meta.outputs.version }}
           path: build/libs/CtrlZMod-*.jar
           if-no-files-found: error
 
       - name: Publish GitHub Release
         uses: ncipollo/release-action@v1
         with:
-          tag: v0.2.${{ github.run_number }}
-          name: CtrlZMod v0.2.${{ github.run_number }}
+          tag: v${{ steps.meta.outputs.version }}
+          name: CtrlZMod v${{ steps.meta.outputs.version }}
           commit: ${{ github.sha }}
           artifacts: build/libs/CtrlZMod-*.jar
           allowUpdates: true

@@ -32,11 +32,11 @@ public class CtrlZMod implements PostUpdateSubscriber {
         boolean ctrlZNow = ctrlDown && zDown;
         boolean ctrlYNow = ctrlDown && yDown;
 
-        if (ctrlZNow && !ctrlZPressedLastFrame) {
+        if (ctrlZNow && !ctrlZPressedLastFrame && canHandleUndoHotkey()) {
             UndoManager.undoLatest();
         }
 
-        if (ctrlYNow && !ctrlYPressedLastFrame) {
+        if (ctrlYNow && !ctrlYPressedLastFrame && canHandleUndoHotkey()) {
             UndoManager.redoLatest();
         }
 
@@ -49,5 +49,10 @@ public class CtrlZMod implements PostUpdateSubscriber {
                 && AbstractDungeon.getCurrRoom() != null
                 && AbstractDungeon.getCurrRoom().phase == com.megacrit.cardcrawl.rooms.AbstractRoom.RoomPhase.COMBAT
                 && !AbstractDungeon.isScreenUp;
+    }
+
+    private static boolean canHandleUndoHotkey() {
+        return inCombat()
+                && AbstractDungeon.actionManager != null;
     }
 }
