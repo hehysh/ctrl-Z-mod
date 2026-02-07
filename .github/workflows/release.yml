@@ -20,19 +20,36 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 8
+      - name: Check local dependency jars
+        id: deps
+        shell: bash
+        run: |
+          shopt -s nullglob
+          jars=(lib/*.jar)
+          if [ ${#jars[@]} -eq 0 ]; then
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No jars found in lib/. Build & release are skipped."
+            exit 0
+          fi
+          echo "found=true" >> "$GITHUB_OUTPUT"
+
+      - name: Set up JDK 17 (Gradle runtime)
+        if: steps.deps.outputs.found == 'true'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '8'
+          java-version: '17'
 
       - name: Set up Gradle
+        if: steps.deps.outputs.found == 'true'
         uses: gradle/actions/setup-gradle@v3
 
       - name: Build jar
+        if: steps.deps.outputs.found == 'true'
         run: gradle clean jar --no-daemon
 
       - name: Upload CI artifact
+        if: steps.deps.outputs.found == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: CtrlZMod-${{ github.run_number }}
@@ -40,6 +57,7 @@ jobs:
           if-no-files-found: error
 
       - name: Publish GitHub Release
+        if: steps.deps.outputs.found == 'true'
         uses: ncipollo/release-action@v1
         with:
           tag: v0.2.${{ github.run_number }}
@@ -53,3 +71,8 @@ jobs:
             Automated release from CI.
             - Commit: ${{ github.sha }}
             - Workflow run: #${{ github.run_number }}
+
+      - name: Build skipped notice
+        if: steps.deps.outputs.found != 'true'
+        run: |
+          echo "Build skipped because required dependency jars were not found in lib/."

@@ -19,8 +19,49 @@ dependencies {
     compileOnly fileTree(dir: 'lib', include: ['*.jar'])
 }
 
+def requiredJarHints = [
+        'desktop-1.0.jar (Slay the Spire)',
+        'ModTheSpire*.jar',
+        'BaseMod*.jar'
+]
+
+tasks.register('checkModLibs') {
+    doLast {
+        File libDir = file('lib')
+        if (!libDir.exists()) {
+            throw new GradleException("Missing ./lib directory. Required jars: ${requiredJarHints.join(', ')}")
+        }
+
+        def jars = fileTree(libDir).matching { include '*.jar' }.files
+        if (jars.isEmpty()) {
+            throw new GradleException("No jars found in ./lib. Required jars: ${requiredJarHints.join(', ')}")
+        }
+
+        def names = jars.collect { it.name.toLowerCase() }
+        def missing = []
+        if (!names.any { it.contains('desktop-1.0') || it.contains('slaythespire') }) {
+            missing << 'desktop-1.0.jar (Slay the Spire)'
+        }
+        if (!names.any { it.contains('modthespire') }) {
+            missing << 'ModTheSpire*.jar'
+        }
+        if (!names.any { it.contains('basemod') }) {
+            missing << 'BaseMod*.jar'
+        }
+
+        if (!missing.isEmpty()) {
+            throw new GradleException("Missing required jars in ./lib: ${missing.join(', ')}")
+        }
+    }
+}
+
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
+    options.release = 8
+}
+
+tasks.named('compileJava') {
+    dependsOn tasks.named('checkModLibs')
 }
 
 jar {
