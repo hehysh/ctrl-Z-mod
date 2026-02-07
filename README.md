@@ -23,6 +23,8 @@
 
 > 若缺少 `savestate.SaveState`，Mod 会安全降级为“不执行撤回/重做”，不会导致崩溃。
 
+> 说明：仓库内包含最小 **compile stubs**（仅用于 CI 编译通过）。这些 stubs 不会被打进最终 jar，也不会在游戏中替代真实 API。
+
 ## 构建
 构建机要求：
 - Gradle 9.x 运行需要 JDK 17+
@@ -46,12 +48,5 @@
 
 ## CI 发布说明
 - 每次 push 到 `main` 会触发自动构建与发布。
-- CI 会优先使用仓库内 `lib/*.jar`；若缺失则自动按 URL 下载依赖。
-
-建议在 GitHub 仓库里配置：
-- Secret: `STS_JAR_URL`（游戏本体 `desktop-1.0.jar` 的私有下载地址）
-- Variable: `MTS_JAR_URL`（ModTheSpire jar 地址）
-- Variable: `BASEMOD_JAR_URL`（BaseMod jar 地址）
-- Variable: `SAVESTATE_JAR_URL`（可选，SaveStateMod jar 地址）
-
-这样可实现“仓库不存大 jar、CI 仍可稳定自动构建发布”。
+- 不需要配置任何仓库变量/密钥。
+- CI 通过内置 compile stubs 完成编译并发布 jar。

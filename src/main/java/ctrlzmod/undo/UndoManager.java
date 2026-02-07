@@ -2,14 +2,13 @@ package ctrlzmod.undo;
 
 import com.megacrit.cardcrawl.dungeons.AbstractDungeon;
 import ctrlzmod.CtrlZMod;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.util.logging.Logger;
 
 public class UndoManager {
-    private static final Logger logger = LogManager.getLogger(UndoManager.class);
+    private static final Logger logger = Logger.getLogger(UndoManager.class.getName());
     private static Object lastState = null;
     private static Object redoState = null;
 
@@ -36,7 +35,7 @@ public class UndoManager {
         } catch (Throwable ignored) {
             lastState = null;
             redoState = null;
-            logger.debug("Capture skipped: SaveState API not available.");
+            logger.fine("Capture skipped: SaveState API not available.");
         }
     }
 
@@ -57,7 +56,7 @@ public class UndoManager {
             AbstractDungeon.actionManager.clearPostCombatActions();
             AbstractDungeon.player.releaseCard();
         } catch (Throwable ignored) {
-            logger.warn("Undo failed due to SaveState API mismatch.");
+            logger.warning("Undo failed due to SaveState API mismatch.");
         } finally {
             lastState = null;
         }
@@ -82,7 +81,7 @@ public class UndoManager {
 
             lastState = beforeRedo;
         } catch (Throwable ignored) {
-            logger.warn("Redo failed due to SaveState API mismatch.");
+            logger.warning("Redo failed due to SaveState API mismatch.");
         } finally {
             redoState = null;
         }

@@ -15,56 +15,10 @@ concurrency:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
-    env:
-      STS_JAR_URL: ${{ secrets.STS_JAR_URL }}
-      MTS_JAR_URL: ${{ vars.MTS_JAR_URL }}
-      BASEMOD_JAR_URL: ${{ vars.BASEMOD_JAR_URL }}
-      SAVESTATE_JAR_URL: ${{ vars.SAVESTATE_JAR_URL }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Prepare dependency jars
-        shell: bash
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-
-          mkdir -p lib
-
-          download_if_missing() {
-            local out_file="$1"
-            local url="$2"
-            if [[ -f "$out_file" ]]; then
-              echo "Found existing $(basename "$out_file")"
-              return 0
-            fi
-            if [[ -z "${url:-}" ]]; then
-              return 0
-            fi
-            echo "Downloading $(basename "$out_file")"
-            curl -fL --retry 3 --retry-delay 2 "$url" -o "$out_file"
-          }
-
-          # Required for compile
-          download_if_missing "lib/desktop-1.0.jar" "${STS_JAR_URL:-}"
-          download_if_missing "lib/ModTheSpire.jar" "${MTS_JAR_URL:-}"
-          download_if_missing "lib/BaseMod.jar" "${BASEMOD_JAR_URL:-}"
-
-          # Optional
-          download_if_missing "lib/SaveStateMod.jar" "${SAVESTATE_JAR_URL:-}"
-
-          missing=()
-          [[ -f lib/desktop-1.0.jar ]] || missing+=("desktop-1.0.jar")
-          [[ -f lib/ModTheSpire.jar ]] || missing+=("ModTheSpire.jar")
-          [[ -f lib/BaseMod.jar ]] || missing+=("BaseMod.jar")
-
-          if [[ ${#missing[@]} -gt 0 ]]; then
-            echo "::error::Missing required jars: ${missing[*]}"
-            echo "::error::Set repository variables MTS_JAR_URL / BASEMOD_JAR_URL and secret STS_JAR_URL, or commit jars under lib/."
-            exit 1
-          fi
 
       - name: Set up JDK 17 (Gradle runtime)
         uses: actions/setup-java@v4

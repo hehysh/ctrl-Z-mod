@@ -14,45 +14,20 @@ repositories {
     mavenCentral()
 }
 
-dependencies {
-    // Put Slay the Spire + ModTheSpire + BaseMod (+ optional SaveStateMod) jars in ./lib
-    compileOnly fileTree(dir: 'lib', include: ['*.jar'])
-}
-
-def requiredJarHints = [
-        'desktop-1.0.jar (Slay the Spire)',
-        'ModTheSpire*.jar',
-        'BaseMod*.jar'
-]
-
-tasks.register('checkModLibs') {
-    doLast {
-        File libDir = file('lib')
-        if (!libDir.exists()) {
-            throw new GradleException("Missing ./lib directory. Required jars: ${requiredJarHints.join(', ')}")
-        }
-
-        def jars = fileTree(libDir).matching { include '*.jar' }.files
-        if (jars.isEmpty()) {
-            throw new GradleException("No jars found in ./lib. Required jars: ${requiredJarHints.join(', ')}")
-        }
-
-        def names = jars.collect { it.name.toLowerCase() }
-        def missing = []
-        if (!names.any { it.contains('desktop-1.0') || it.contains('slaythespire') }) {
-            missing << 'desktop-1.0.jar (Slay the Spire)'
-        }
-        if (!names.any { it.contains('modthespire') }) {
-            missing << 'ModTheSpire*.jar'
-        }
-        if (!names.any { it.contains('basemod') }) {
-            missing << 'BaseMod*.jar'
-        }
-
-        if (!missing.isEmpty()) {
-            throw new GradleException("Missing required jars in ./lib: ${missing.join(', ')}")
+sourceSets {
+    stubs {
+        java {
+            srcDir 'src/stubs/java'
         }
     }
+    main {
+        compileClasspath += sourceSets.stubs.output
+    }
+}
+
+dependencies {
+    // Optional real jars; build can still run in CI without them by using local stubs.
+    compileOnly fileTree(dir: 'lib', include: ['*.jar'])
 }
 
 tasks.withType(JavaCompile).configureEach {
@@ -61,11 +36,13 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 tasks.named('compileJava') {
-    dependsOn tasks.named('checkModLibs')
+    dependsOn tasks.named('compileStubsJava')
 }
 
 jar {
     archiveBaseName = 'CtrlZMod'
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     from(sourceSets.main.output)
+    exclude('basemod/**')
+    exclude('com/**')
 }
