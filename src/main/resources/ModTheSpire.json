@@ -1,0 +1,10 @@
+{
+  "modid": "ctrlzmod",
+  "name": "Ctrl+Z Mod",
+  "author_list": ["hehysh"],
+  "description": "Combat-only single-step undo with Ctrl+Z (best-effort compatibility).",
+  "version": "0.1.0",
+  "sts_version": "12-22-2020",
+  "mts_version": "3.30.0",
+  "dependencies": ["basemod"]
+}

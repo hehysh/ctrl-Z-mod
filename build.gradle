@@ -1,0 +1,30 @@
+plugins {
+    id 'java'
+}
+
+group = 'ctrlzmod'
+version = '0.1.0'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Put Slay the Spire + ModTheSpire + BaseMod (+ optional SaveStateMod) jars in ./lib
+    compileOnly fileTree(dir: 'lib', include: ['*.jar'])
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+jar {
+    archiveBaseName = 'CtrlZMod'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from(sourceSets.main.output)
+}
