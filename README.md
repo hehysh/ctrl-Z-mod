@@ -46,4 +46,12 @@
 
 ## CI 发布说明
 - 每次 push 到 `main` 会触发自动构建与发布。
-- 若 CI 未找到 `lib/*.jar`，会自动跳过构建与发布（给 warning，不红灯失败）。
+- CI 会优先使用仓库内 `lib/*.jar`；若缺失则自动按 URL 下载依赖。
+
+建议在 GitHub 仓库里配置：
+- Secret: `STS_JAR_URL`（游戏本体 `desktop-1.0.jar` 的私有下载地址）
+- Variable: `MTS_JAR_URL`（ModTheSpire jar 地址）
+- Variable: `BASEMOD_JAR_URL`（BaseMod jar 地址）
+- Variable: `SAVESTATE_JAR_URL`（可选，SaveStateMod jar 地址）
+
+这样可实现“仓库不存大 jar、CI 仍可稳定自动构建发布”。
